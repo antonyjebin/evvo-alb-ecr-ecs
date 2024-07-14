@@ -1,0 +1,41 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main  # adjust branch name if needed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}  # replace with your AWS region stored in secrets
+
+      - name: Login to AWS ECR
+        run: |
+          aws ecr get-login-password --region eu-west-1 --profile personal | docker login --username AWS --password-stdin 918822628996.dkr.ecr.eu-west-1.amazonaws.com
+
+      - name: Build Docker image
+        run: |
+          docker build -t my-test-repo ../
+
+      - name: Tag Docker image
+        run: |
+          docker tag my-test-repo:latest 918822628996.dkr.ecr.eu-west-1.amazonaws.com/my-test-repo:latest
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push 918822628996.dkr.ecr.eu-west-1.amazonaws.com/my-test-repo:latest
+
+      - name: Update ECS Service
+        run: |
+          aws ecs update-service --cluster test-ecs-cluster --service test-ecs-service --force-new-deployment
